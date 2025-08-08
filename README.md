@@ -11,6 +11,7 @@ Sistema de gestión de prompts con control de versiones para JSON y YAML. Diseñ
 - ✅ **Validación estricta** de templates y parámetros
 - ✅ **Alto rendimiento** con imports condicionales
 - ✅ **Soporte JSON y YAML** con handlers optimizados
+- ✅ **Sistema de plugins** para cualquier backend Python
 - ✅ **Soft delete** con recuperación desde historial
 - ✅ **Parámetros opcionales** con validación en runtime
 - ✅ **Backup automático** de archivos
@@ -27,11 +28,20 @@ pip install prompt-suite
 # Para mejor rendimiento JSON
 pip install prompt-suite[json]
 
-# Para soporte completo
+# Para soporte completo (incluye plugins)
 pip install prompt-suite[full]
 
 # Para desarrollo
 pip install prompt-suite[dev]
+```
+
+### Instalación para plugins
+```bash
+# Para usar plugins con bases de datos
+pip install prompt-suite[plugins]
+
+# Para plugins con APIs
+pip install prompt-suite[plugins,requests]
 ```
 
 ## Uso Rápido
@@ -53,6 +63,61 @@ ps.create_prompt(
 # Construir el prompt
 resultado = ps.build_prompt("saludo", {"name": "Juan"})
 print(resultado)  # "Hola Juan, ¿cómo estás?"
+```
+
+### Uso Rápido con Plugin
+
+```python
+from prompt_suite import PromptSuite
+from prompt_suite.handlers import get_plugins_handler
+
+# Crear plugin simple
+def create_simple_backend():
+    storage = {"prompts": {}}
+    
+    def create_prompt_func(name, model_name, content, parameters, default_model=None):
+        storage["prompts"][name] = {
+            "nombre": name,
+            "default_model": default_model or model_name,
+            "models": {model_name: {"content": content, "parameters": parameters}}
+        }
+        return storage["prompts"][name]
+    
+    def get_prompt_func(name):
+        return storage["prompts"][name]
+    
+    def list_prompts_func():
+        return list(storage["prompts"].keys())
+    
+    def save_prompt_func(prompt):
+        storage["prompts"][prompt.nombre] = {
+            "nombre": prompt.nombre,
+            "default_model": prompt.default_model,
+            "models": {
+                name: {"content": model.content, "parameters": model.parameters}
+                for name, model in prompt.models.items()
+            }
+        }
+    
+    PluginHandler = get_plugins_handler()
+    return PluginHandler.create_connection(
+        name="simple_backend",
+        create_prompt_func=create_prompt_func,
+        get_prompt_func=get_prompt_func,
+        update_prompt_func=lambda name, new_name=None, default_model=None: None,
+        delete_prompt_func=lambda name: storage["prompts"].pop(name, None),
+        list_prompts_func=list_prompts_func,
+        save_prompt_func=save_prompt_func
+    )
+
+# Usar con plugin
+handler = create_simple_backend()
+ps = PromptSuite(handler)
+
+# Crear y usar prompts
+ps.create_prompt("saludo", "gpt-4", "Hola {nombre}", ["nombre"])
+resultado = ps.build_prompt("saludo", {"nombre": "Juan"})
+print(resultado)  # "Hola Juan"
 ```
 
 ## Ejemplos Completos
@@ -156,6 +221,305 @@ ps.delete_prompt("analisis_mejorado")
 # Restaurar desde historial
 ps.restore_prompt("analisis_mejorado")
 ```
+
+## 🔌 Sistema de Plugins
+
+PromptSuite incluye un sistema de plugins que permite conectar con cualquier backend Python. Los plugins son completamente independientes y pueden usar cualquier tecnología de almacenamiento.
+
+### Características de Plugins
+
+- ✅ **Backend independiente** - PromptSuite no conoce la implementación
+- ✅ **Cualquier tecnología** - SQLite, PostgreSQL, Redis, APIs, etc.
+- ✅ **Funciones personalizadas** - Define tu propia lógica de almacenamiento
+- ✅ **Soporte async/sync** - Funciones síncronas y asíncronas
+- ✅ **Validación automática** - Verificación de funciones requeridas
+- ✅ **Manejo de errores** - Integración transparente con el sistema de errores
+
+### 5. Plugin Simple (Diccionario)
+
+```python
+from prompt_suite import PromptSuite
+from prompt_suite.handlers import get_plugins_handler
+
+def create_simple_backend():
+    """Backend simple basado en diccionario"""
+    storage = {"prompts": {}, "history": []}
+    
+    def create_prompt_func(name, model_name, content, parameters, default_model=None):
+        storage["prompts"][name] = {
+            "nombre": name,
+            "default_model": default_model or model_name,
+            "models": {model_name: {"content": content, "parameters": parameters}}
+        }
+        return storage["prompts"][name]
+    
+    def get_prompt_func(name):
+        if name not in storage["prompts"]:
+            raise Exception(f"Prompt '{name}' no encontrado")
+        return storage["prompts"][name]
+    
+    def list_prompts_func():
+        return list(storage["prompts"].keys())
+    
+    def save_prompt_func(prompt):
+        storage["prompts"][prompt.nombre] = {
+            "nombre": prompt.nombre,
+            "default_model": prompt.default_model,
+            "models": {
+                name: {"content": model.content, "parameters": model.parameters}
+                for name, model in prompt.models.items()
+            }
+        }
+    
+    # Crear plugin
+    PluginHandler = get_plugins_handler()
+    handler = PluginHandler.create_connection(
+        name="simple_backend",
+        create_prompt_func=create_prompt_func,
+        get_prompt_func=get_prompt_func,
+        update_prompt_func=lambda name, new_name=None, default_model=None: None,
+        delete_prompt_func=lambda name: storage["prompts"].pop(name, None),
+        list_prompts_func=list_prompts_func,
+        save_prompt_func=save_prompt_func
+    )
+    
+    return handler, storage
+
+# Usar el plugin
+handler, storage = create_simple_backend()
+ps = PromptSuite(handler)
+
+# Crear y usar prompts normalmente
+ps.create_prompt("saludo", "gpt-4", "Hola {nombre}", ["nombre"])
+resultado = ps.build_prompt("saludo", {"nombre": "Juan"})
+print(resultado)  # "Hola Juan"
+```
+
+### 6. Plugin SQLite
+
+```python
+import sqlite3
+import json
+from prompt_suite import PromptSuite
+from prompt_suite.handlers import get_plugins_handler
+
+def create_sqlite_backend():
+    """Backend basado en SQLite"""
+    db_path = "prompts.db"
+    
+    def init_database():
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Crear tablas
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS prompts (
+                name TEXT PRIMARY KEY,
+                default_model TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS models (
+                prompt_name TEXT,
+                model_name TEXT,
+                content TEXT,
+                parameters TEXT,
+                PRIMARY KEY (prompt_name, model_name),
+                FOREIGN KEY (prompt_name) REFERENCES prompts (name)
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+    
+    init_database()
+    
+    def create_prompt_func(name, model_name, content, parameters, default_model=None):
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            'INSERT INTO prompts (name, default_model) VALUES (?, ?)',
+            (name, default_model or model_name)
+        )
+        
+        cursor.execute(
+            'INSERT INTO models (prompt_name, model_name, content, parameters) VALUES (?, ?, ?, ?)',
+            (name, model_name, content, json.dumps(parameters))
+        )
+        
+        conn.commit()
+        conn.close()
+    
+    def get_prompt_func(name):
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM prompts WHERE name = ?', (name,))
+        prompt_data = cursor.fetchone()
+        
+        cursor.execute('SELECT * FROM models WHERE prompt_name = ?', (name,))
+        models_data = cursor.fetchall()
+        
+        conn.close()
+        
+        if not prompt_data:
+            raise Exception(f"Prompt '{name}' no encontrado")
+        
+        models = {}
+        for model_row in models_data:
+            models[model_row[1]] = {
+                "content": model_row[2],
+                "parameters": json.loads(model_row[3])
+            }
+        
+        return {
+            "nombre": prompt_data[0],
+            "default_model": prompt_data[1],
+            "models": models
+        }
+    
+    def list_prompts_func():
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute('SELECT name FROM prompts')
+        prompts = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        return prompts
+    
+    def save_prompt_func(prompt):
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Actualizar prompt
+        cursor.execute(
+            'UPDATE prompts SET default_model = ? WHERE name = ?',
+            (prompt.default_model, prompt.nombre)
+        )
+        
+        # Actualizar modelos
+        for model_name, model in prompt.models.items():
+            cursor.execute('''
+                INSERT OR REPLACE INTO models 
+                (prompt_name, model_name, content, parameters) 
+                VALUES (?, ?, ?, ?)
+            ''', (prompt.nombre, model_name, model.content, json.dumps(model.parameters)))
+        
+        conn.commit()
+        conn.close()
+    
+    # Crear plugin
+    PluginHandler = get_plugins_handler()
+    handler = PluginHandler.create_connection(
+        name="sqlite_backend",
+        create_prompt_func=create_prompt_func,
+        get_prompt_func=get_prompt_func,
+        update_prompt_func=lambda name, new_name=None, default_model=None: None,
+        delete_prompt_func=lambda name: sqlite3.connect(db_path).execute('DELETE FROM prompts WHERE name = ?', (name,)).commit(),
+        list_prompts_func=list_prompts_func,
+        save_prompt_func=save_prompt_func
+    )
+    
+    return handler
+
+# Usar el plugin
+handler = create_sqlite_backend()
+ps = PromptSuite(handler)
+
+# Los prompts se guardan en SQLite
+ps.create_prompt("analisis", "gpt-4", "Analiza: {texto}", ["texto"])
+```
+
+### 7. Plugin con API Externa
+
+```python
+import requests
+from prompt_suite import PromptSuite
+from prompt_suite.handlers import get_plugins_handler
+
+def create_api_backend(api_url, api_key):
+    """Backend que conecta con una API externa"""
+    
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    
+    def create_prompt_func(name, model_name, content, parameters, default_model=None):
+        data = {
+            "name": name,
+            "model_name": model_name,
+            "content": content,
+            "parameters": parameters,
+            "default_model": default_model or model_name
+        }
+        response = requests.post(f"{api_url}/prompts", json=data, headers=headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def get_prompt_func(name):
+        response = requests.get(f"{api_url}/prompts/{name}", headers=headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def list_prompts_func():
+        response = requests.get(f"{api_url}/prompts", headers=headers)
+        response.raise_for_status()
+        return [prompt["name"] for prompt in response.json()]
+    
+    def save_prompt_func(prompt):
+        data = {
+            "name": prompt.nombre,
+            "default_model": prompt.default_model,
+            "models": {
+                name: {"content": model.content, "parameters": model.parameters}
+                for name, model in prompt.models.items()
+            }
+        }
+        response = requests.put(f"{api_url}/prompts/{prompt.nombre}", json=data, headers=headers)
+        response.raise_for_status()
+    
+    # Crear plugin
+    PluginHandler = get_plugins_handler()
+    handler = PluginHandler.create_connection(
+        name="api_backend",
+        create_prompt_func=create_prompt_func,
+        get_prompt_func=get_prompt_func,
+        update_prompt_func=lambda name, new_name=None, default_model=None: None,
+        delete_prompt_func=lambda name: requests.delete(f"{api_url}/prompts/{name}", headers=headers),
+        list_prompts_func=list_prompts_func,
+        save_prompt_func=save_prompt_func
+    )
+    
+    return handler
+
+# Usar el plugin
+handler = create_api_backend("https://api.ejemplo.com", "tu-api-key")
+ps = PromptSuite(handler)
+```
+
+### Funciones Requeridas para Plugins
+
+Para crear un plugin, debes proporcionar estas funciones obligatorias:
+
+- `create_prompt_func(name, model_name, content, parameters, default_model=None)`
+- `get_prompt_func(name)`
+- `update_prompt_func(name, new_name=None, default_model=None)`
+- `delete_prompt_func(name)`
+- `list_prompts_func()`
+- `save_prompt_func(prompt)`
+
+**Funciones opcionales:**
+- `get_history_func(name=None, model_name=None)`
+- `clear_history_func(name=None)`
+- `backup_func(backup_name)`
+
+### Ventajas de los Plugins
+
+1. **Flexibilidad total** - Usa cualquier tecnología de almacenamiento
+2. **Independencia** - PromptSuite no conoce tu implementación
+3. **Escalabilidad** - Conecta con bases de datos distribuidas
+4. **Integración** - Conecta con sistemas existentes
+5. **Rendimiento** - Optimiza según tus necesidades específicas
 
 ## Estructura de Datos
 
@@ -303,6 +667,14 @@ except MissingParameterError:
 MIT License - ver [LICENSE](LICENSE) para detalles.
 
 ## Changelog
+
+### v0.2.0 (Pre-Alpha)
+- ✅ **Sistema de plugins** para cualquier backend Python
+- ✅ **Plugins para SQLite** con base de datos completa
+- ✅ **Plugins para APIs externas** con soporte HTTP
+- ✅ **Plugins simples** basados en diccionario
+- ✅ **Soporte async/sync** en plugins
+- ✅ **Validación automática** de funciones de plugin
 
 ### v0.1.0
 - Implementación inicial
