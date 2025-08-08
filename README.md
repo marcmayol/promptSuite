@@ -1,6 +1,6 @@
 # Prompt Suite
 
-## �� Versión Alpha - En desarrollo activo
+## ⚠️ ⚠️  Versión Alpha - En desarrollo activo
 
 Sistema de gestión de prompts con control de versiones para JSON y YAML. Diseñado para alto rendimiento y mínimo peso.
 
