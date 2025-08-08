@@ -1,7 +1,7 @@
 """
 Clase principal PromptSuite - Sistema de gestión de prompts con control de versiones
 """
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from datetime import datetime
 
 from .core.utils import detect_file_format, validate_file_path
@@ -13,35 +13,44 @@ from .core.exceptions import (
     ModelNotFoundError,
     HistoryError
 )
-from .handlers import get_json_handler, get_yaml_handler
+from .handlers import get_json_handler, get_yaml_handler, get_plugins_handler
 
 
 class PromptSuite:
     """
     Sistema de gestión de prompts con control de versiones.
     
-    Soporta archivos JSON y YAML con alto rendimiento y validaciones estrictas.
+    Soporta archivos JSON, YAML y plugins para funciones Python externas.
     """
     
-    def __init__(self, file_path: str):
+    def __init__(self, source: Union[str, 'PluginConnectionHandler']):
         """
-        Inicializar PromptSuite con un archivo de datos.
+        Inicializar PromptSuite con un archivo o plugin.
         
         Args:
-            file_path: Ruta al archivo JSON o YAML
+            source: Ruta al archivo JSON/YAML o handler de plugin
         """
-        self.file_path = validate_file_path(file_path)
-        self.file_format = detect_file_format(self.file_path)
-        
-        # Inicializar handler específico
-        if self.file_format == 'json':
-            JsonHandler = get_json_handler()
-            self._handler = JsonHandler(self.file_path)
-        elif self.file_format == 'yaml':
-            YamlHandler = get_yaml_handler()
-            self._handler = YamlHandler(self.file_path)
+        if isinstance(source, str):
+            # Modo archivo (comportamiento actual)
+            self.file_path = validate_file_path(source)
+            self.file_format = detect_file_format(self.file_path)
+            
+            # Inicializar handler específico
+            if self.file_format == 'json':
+                JsonHandler = get_json_handler()
+                self._handler = JsonHandler(self.file_path)
+            elif self.file_format == 'yaml':
+                YamlHandler = get_yaml_handler()
+                self._handler = YamlHandler(self.file_path)
+            else:
+                raise ValidationError(f"Formato de archivo no soportado: {self.file_format}")
+            
+            self._connection_mode = False
+            
         else:
-            raise ValidationError(f"Formato de archivo no soportado: {self.file_format}")
+            # Modo plugin - source ya es un PluginConnectionHandler
+            self._handler = source
+            self._connection_mode = True
     
     def create_prompt(self, name: str, model_name: str, content: str, parameters: List[str], 
                      default_model: Optional[str] = None) -> Prompt:
@@ -256,14 +265,7 @@ class PromptSuite:
             PromptNotFoundError: Si el prompt no existe
             ModelNotFoundError: Si el modelo no existe
         """
-        prompt = self.get_prompt(name)
-        prompt.set_default_model(model_name)
-        
-        # Guardar cambios
-        self._handler.data["prompts"][name] = prompt.to_dict()
-        self._handler._save_data()
-        
-        return prompt
+        return self.update_prompt(name, default_model=model_name)
     
     def get_prompt_info(self, name: str) -> Dict[str, Any]:
         """
@@ -294,17 +296,34 @@ class PromptSuite:
         }
     
     @property
+    def source_info(self) -> Dict[str, Any]:
+        """
+        Obtener información de la fuente de datos.
+        
+        Returns:
+            Diccionario con información de la fuente
+        """
+        if self._connection_mode:
+            return {
+                "mode": "connection",
+                "connection_type": "external_functions"
+            }
+        else:
+            return {
+                "mode": "file",
+                "file_path": self.file_path,
+                "file_format": self.file_format,
+                "total_prompts": len(self.list_prompts()),
+                "has_history": bool(self.get_history())
+            }
+    
+    @property
     def file_info(self) -> Dict[str, Any]:
         """
-        Obtener información del archivo actual.
+        Obtener información del archivo actual (compatibilidad).
         
         Returns:
             Diccionario con información del archivo
         """
-        return {
-            "file_path": self.file_path,
-            "file_format": self.file_format,
-            "total_prompts": len(self.list_prompts()),
-            "has_history": bool(self.get_history())
-        }
+        return self.source_info
 

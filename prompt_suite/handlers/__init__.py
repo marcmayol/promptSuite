@@ -1,5 +1,5 @@
 """
-Handlers para diferentes formatos de archivo
+Handlers para diferentes formatos de archivo y plugins
 """
 
 # Imports condicionales para alto rendimiento
@@ -13,4 +13,9 @@ def get_yaml_handler():
     from .yaml_handler import YamlHandler
     return YamlHandler
 
-__all__ = ['get_json_handler', 'get_yaml_handler']
+def get_plugins_handler():
+    """Obtener el handler de plugins de forma lazy"""
+    from .plugins_handler import PluginConnectionHandler
+    return PluginConnectionHandler
+
+__all__ = ['get_json_handler', 'get_yaml_handler', 'get_plugins_handler']
