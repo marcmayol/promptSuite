@@ -1,83 +1,83 @@
 # Prompt Suite
 
-## ⚠️ ⚠️  Versión Alpha - En desarrollo activo
+## ⚠️ ⚠️  Alpha Version - Active Development
 
-Sistema de gestión de prompts con control de versiones para JSON y YAML. Diseñado para alto rendimiento y mínimo peso.
+Prompt management system with version control for JSON and YAML. Designed for high performance and minimal footprint.
 
-## Características
+## Features
 
-- ✅ **Control de versiones completo** con historial de cambios
-- ✅ **Soporte para múltiples modelos** por prompt
-- ✅ **Validación estricta** de templates y parámetros
-- ✅ **Alto rendimiento** con imports condicionales
-- ✅ **Soporte JSON y YAML** con handlers optimizados
-- ✅ **Sistema de plugins** para cualquier backend Python
-- ✅ **Soft delete** con recuperación desde historial
-- ✅ **Parámetros opcionales** con validación en runtime
-- ✅ **Backup automático** de archivos
+- ✅ **Complete version control** with change history
+- ✅ **Multiple model support** per prompt
+- ✅ **Strict validation** of templates and parameters
+- ✅ **High performance** with conditional imports
+- ✅ **JSON and YAML support** with optimized handlers
+- ✅ **Plugin system** for any Python backend
+- ✅ **Soft delete** with recovery from history
+- ✅ **Optional parameters** with runtime validation
+- ✅ **Automatic backup** of files
 
-## Instalación
+## Installation
 
-### Instalación básica
+### Basic Installation
 ```bash
 pip install prompt-suite
 ```
 
-### Instalación con optimizaciones de rendimiento
+### Installation with Performance Optimizations
 ```bash
-# Para mejor rendimiento JSON
+# For better JSON performance
 pip install prompt-suite[json]
 
-# Para soporte completo (incluye plugins)
+# For complete support (includes plugins)
 pip install prompt-suite[full]
 
-# Para desarrollo
+# For development
 pip install prompt-suite[dev]
 ```
 
-### Instalación para plugins
+### Installation for Plugins
 ```bash
-# Para usar plugins con bases de datos
+# For using plugins with databases
 pip install prompt-suite[plugins]
 
-# Para plugins con APIs
+# For plugins with APIs
 pip install prompt-suite[plugins,requests]
 ```
 
-## Uso Rápido
+## Quick Start
 
 ```python
 from prompt_suite import PromptSuite
 
-# Crear instancia (JSON o YAML)
+# Create instance (JSON or YAML)
 ps = PromptSuite("prompts.json")
 
-# Crear un prompt
+# Create a prompt
 ps.create_prompt(
-    name="saludo",
+    name="greeting",
     model_name="gpt-4",
-    content="Hola {name}, ¿cómo estás?",
+    content="Hello {name}, how are you?",
     parameters=["name"]
 )
 
-# Construir el prompt
-resultado = ps.build_prompt("saludo", {"name": "Juan"})
-print(resultado)  # "Hola Juan, ¿cómo estás?"
+# Build the prompt
+result = ps.build_prompt("greeting", {"name": "John"})
+print(result)  # "Hello John, how are you?"
 ```
 
-### Uso Rápido con Plugin
+### Quick Start with Plugin
 
 ```python
 from prompt_suite import PromptSuite
 from prompt_suite.handlers import get_plugins_handler
 
-# Crear plugin simple
+# Create simple plugin
 def create_simple_backend():
     storage = {"prompts": {}}
     
     def create_prompt_func(name, model_name, content, parameters, default_model=None):
         storage["prompts"][name] = {
-            "nombre": name,
+            "name": name,
             "default_model": default_model or model_name,
             "models": {model_name: {"content": content, "parameters": parameters}}
         }
@@ -90,8 +90,8 @@ def create_simple_backend():
         return list(storage["prompts"].keys())
     
     def save_prompt_func(prompt):
-        storage["prompts"][prompt.nombre] = {
-            "nombre": prompt.nombre,
+        storage["prompts"][prompt.name] = {
+            "name": prompt.name,
             "default_model": prompt.default_model,
             "models": {
                 name: {"content": model.content, "parameters": model.parameters}
@@ -110,144 +110,144 @@ def create_simple_backend():
         save_prompt_func=save_prompt_func
     )
 
-# Usar con plugin
+# Use with plugin
 handler = create_simple_backend()
 ps = PromptSuite(handler)
 
-# Crear y usar prompts
-ps.create_prompt("saludo", "gpt-4", "Hola {nombre}", ["nombre"])
-resultado = ps.build_prompt("saludo", {"nombre": "Juan"})
-print(resultado)  # "Hola Juan"
+# Create and use prompts
+ps.create_prompt("greeting", "gpt-4", "Hello {name}", ["name"])
+result = ps.build_prompt("greeting", {"name": "John"})
+print(result)  # "Hello John"
 ```
 
-## Ejemplos Completos
+## Complete Examples
 
-### 1. Crear y usar prompts
+### 1. Create and use prompts
 
 ```python
 from prompt_suite import PromptSuite
 
-# Inicializar con archivo JSON
+# Initialize with JSON file
 ps = PromptSuite("my_prompts.json")
 
-# Crear un prompt para análisis de texto
+# Create a prompt for text analysis
 ps.create_prompt(
-    name="analisis_texto",
+    name="text_analysis",
     model_name="gpt-4",
     content="""
-    Analiza el siguiente texto y proporciona:
-    - Sentimiento: {sentiment}
-    - Tema principal: {topic}
-    - Resumen: {summary}
+    Analyze the following text and provide:
+    - Sentiment: {sentiment}
+    - Main topic: {topic}
+    - Summary: {summary}
     
-    Texto: {text}
+    Text: {text}
     """,
     parameters=["sentiment", "topic", "summary", "text"]
 )
 
-# Usar el prompt
-resultado = ps.build_prompt("analisis_texto", {
-    "sentiment": "positivo",
-    "topic": "tecnología",
-    "summary": "avances en IA",
-    "text": "La inteligencia artificial está revolucionando..."
+# Use the prompt
+result = ps.build_prompt("text_analysis", {
+    "sentiment": "positive",
+    "topic": "technology",
+    "summary": "AI advances",
+    "text": "Artificial intelligence is revolutionizing..."
 })
 ```
 
-### 2. Múltiples modelos por prompt
+### 2. Multiple models per prompt
 
 ```python
-# Agregar otro modelo al mismo prompt
+# Add another model to the same prompt
 ps.add_model(
-    name="analisis_texto",
+    name="text_analysis",
     model_name="claude-3",
     content="""
-    Eres un analista experto. Analiza este texto:
+    You are an expert analyst. Analyze this text:
     
-    Texto: {text}
-    Sentimiento: {sentiment}
-    Tema: {topic}
+    Text: {text}
+    Sentiment: {sentiment}
+    Topic: {topic}
     """,
     parameters=["text", "sentiment", "topic"]
 )
 
-# Usar modelo específico
-resultado = ps.build_prompt(
-    "analisis_texto", 
-    {"text": "Hola mundo", "sentiment": "neutral", "topic": "saludo"},
+# Use specific model
+result = ps.build_prompt(
+    "text_analysis", 
+    {"text": "Hello world", "sentiment": "neutral", "topic": "greeting"},
     model_name="claude-3"
 )
 ```
 
-### 3. Control de versiones
+### 3. Version control
 
 ```python
-# Actualizar un modelo (se guarda en historial)
+# Update a model (saved in history)
 ps.update_model(
-    name="analisis_texto",
+    name="text_analysis",
     model_name="gpt-4",
-    content="Nuevo contenido mejorado...",
-    parameters=["nuevo_param"]
+    content="New improved content...",
+    parameters=["new_param"]
 )
 
-# Ver historial
-historial = ps.get_history("analisis_texto")
-print(historial)
+# View history
+history = ps.get_history("text_analysis")
+print(history)
 
-# Restaurar versión anterior
-ps.restore_prompt("analisis_texto", timestamp="2024-01-15T10:30:00Z")
+# Restore previous version
+ps.restore_prompt("text_analysis", timestamp="2024-01-15T10:30:00Z")
 ```
 
-### 4. Gestión de prompts
+### 4. Prompt management
 
 ```python
-# Listar todos los prompts
+# List all prompts
 prompts = ps.list_prompts()
 print(prompts)
 
-# Obtener información detallada
-info = ps.get_prompt_info("analisis_texto")
+# Get detailed information
+info = ps.get_prompt_info("text_analysis")
 print(info)
 
-# Cambiar nombre
-ps.update_prompt("analisis_texto", new_name="analisis_mejorado")
+# Change name
+ps.update_prompt("text_analysis", new_name="improved_analysis")
 
-# Establecer modelo por defecto
-ps.set_default_model("analisis_mejorado", "claude-3")
+# Set default model
+ps.set_default_model("improved_analysis", "claude-3")
 
-# Eliminar prompt (se guarda en historial)
-ps.delete_prompt("analisis_mejorado")
+# Delete prompt (saved in history)
+ps.delete_prompt("improved_analysis")
 
-# Restaurar desde historial
-ps.restore_prompt("analisis_mejorado")
+# Restore from history
+ps.restore_prompt("improved_analysis")
 ```
 
-## 🔌 Sistema de Plugins
+## 🔌 Plugin System
 
-PromptSuite incluye un sistema de plugins que permite conectar con cualquier backend Python. Los plugins son completamente independientes y pueden usar cualquier tecnología de almacenamiento.
+PromptSuite includes a plugin system that allows connecting to any Python backend. Plugins are completely independent and can use any storage technology.
 
-### Características de Plugins
+### Plugin Features
 
-- ✅ **Backend independiente** - PromptSuite no conoce la implementación
-- ✅ **Cualquier tecnología** - SQLite, PostgreSQL, Redis, APIs, etc.
-- ✅ **Funciones personalizadas** - Define tu propia lógica de almacenamiento
-- ✅ **Soporte async/sync** - Funciones síncronas y asíncronas
-- ✅ **Validación automática** - Verificación de funciones requeridas
-- ✅ **Manejo de errores** - Integración transparente con el sistema de errores
+- ✅ **Independent backend** - PromptSuite doesn't know the implementation
+- ✅ **Any technology** - SQLite, PostgreSQL, Redis, APIs, etc.
+- ✅ **Custom functions** - Define your own storage logic
+- ✅ **Async/sync support** - Synchronous and asynchronous functions
+- ✅ **Automatic validation** - Verification of required functions
+- ✅ **Error handling** - Transparent integration with error system
 
-### 5. Plugin Simple (Diccionario)
+### 5. Simple Plugin (Dictionary)
 
 ```python
 from prompt_suite import PromptSuite
 from prompt_suite.handlers import get_plugins_handler
 
 def create_simple_backend():
-    """Backend simple basado en diccionario"""
+    """Simple dictionary-based backend"""
     storage = {"prompts": {}, "history": []}
     
     def create_prompt_func(name, model_name, content, parameters, default_model=None):
         storage["prompts"][name] = {
-            "nombre": name,
+            "name": name,
             "default_model": default_model or model_name,
             "models": {model_name: {"content": content, "parameters": parameters}}
         }
@@ -255,15 +255,15 @@ def create_simple_backend():
     
     def get_prompt_func(name):
         if name not in storage["prompts"]:
-            raise Exception(f"Prompt '{name}' no encontrado")
+            raise Exception(f"Prompt '{name}' not found")
         return storage["prompts"][name]
     
     def list_prompts_func():
         return list(storage["prompts"].keys())
     
     def save_prompt_func(prompt):
-        storage["prompts"][prompt.nombre] = {
-            "nombre": prompt.nombre,
+        storage["prompts"][prompt.name] = {
+            "name": prompt.name,
             "default_model": prompt.default_model,
             "models": {
                 name: {"content": model.content, "parameters": model.parameters}
@@ -271,7 +271,7 @@ def create_simple_backend():
             }
         }
     
-    # Crear plugin
+    # Create plugin
     PluginHandler = get_plugins_handler()
     handler = PluginHandler.create_connection(
         name="simple_backend",
@@ -285,17 +285,17 @@ def create_simple_backend():
     
     return handler, storage
 
-# Usar el plugin
+# Use the plugin
 handler, storage = create_simple_backend()
 ps = PromptSuite(handler)
 
-# Crear y usar prompts normalmente
-ps.create_prompt("saludo", "gpt-4", "Hola {nombre}", ["nombre"])
-resultado = ps.build_prompt("saludo", {"nombre": "Juan"})
-print(resultado)  # "Hola Juan"
+# Create and use prompts normally
+ps.create_prompt("greeting", "gpt-4", "Hello {name}", ["name"])
+result = ps.build_prompt("greeting", {"name": "John"})
+print(result)  # "Hello John"
 ```
 
-### 6. Plugin SQLite
+### 6. SQLite Plugin
 
 ```python
 import sqlite3
@@ -304,14 +304,14 @@ from prompt_suite import PromptSuite
 from prompt_suite.handlers import get_plugins_handler
 
 def create_sqlite_backend():
-    """Backend basado en SQLite"""
+    """SQLite-based backend"""
     db_path = "prompts.db"
     
     def init_database():
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Crear tablas
+        # Create tables
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS prompts (
                 name TEXT PRIMARY KEY,
@@ -366,7 +366,7 @@ def create_sqlite_backend():
         conn.close()
         
         if not prompt_data:
-            raise Exception(f"Prompt '{name}' no encontrado")
+            raise Exception(f"Prompt '{name}' not found")
         
         models = {}
         for model_row in models_data:
@@ -376,7 +376,7 @@ def create_sqlite_backend():
             }
         
         return {
-            "nombre": prompt_data[0],
+            "name": prompt_data[0],
             "default_model": prompt_data[1],
             "models": models
         }
@@ -393,24 +393,24 @@ def create_sqlite_backend():
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Actualizar prompt
+        # Update prompt
         cursor.execute(
             'UPDATE prompts SET default_model = ? WHERE name = ?',
-            (prompt.default_model, prompt.nombre)
+            (prompt.default_model, prompt.name)
         )
         
-        # Actualizar modelos
+        # Update models
         for model_name, model in prompt.models.items():
             cursor.execute('''
                 INSERT OR REPLACE INTO models 
                 (prompt_name, model_name, content, parameters) 
                 VALUES (?, ?, ?, ?)
-            ''', (prompt.nombre, model_name, model.content, json.dumps(model.parameters)))
+            ''', (prompt.name, model_name, model.content, json.dumps(model.parameters)))
         
         conn.commit()
         conn.close()
     
-    # Crear plugin
+    # Create plugin
     PluginHandler = get_plugins_handler()
     handler = PluginHandler.create_connection(
         name="sqlite_backend",
@@ -424,15 +424,15 @@ def create_sqlite_backend():
     
     return handler
 
-# Usar el plugin
+# Use the plugin
 handler = create_sqlite_backend()
 ps = PromptSuite(handler)
 
-# Los prompts se guardan en SQLite
-ps.create_prompt("analisis", "gpt-4", "Analiza: {texto}", ["texto"])
+# Prompts are saved in SQLite
+ps.create_prompt("analysis", "gpt-4", "Analyze: {text}", ["text"])
 ```
 
-### 7. Plugin con API Externa
+### 7. External API Plugin
 
 ```python
 import requests
@@ -440,7 +440,7 @@ from prompt_suite import PromptSuite
 from prompt_suite.handlers import get_plugins_handler
 
 def create_api_backend(api_url, api_key):
-    """Backend que conecta con una API externa"""
+    """Backend that connects to an external API"""
     
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     
@@ -468,17 +468,17 @@ def create_api_backend(api_url, api_key):
     
     def save_prompt_func(prompt):
         data = {
-            "name": prompt.nombre,
+            "name": prompt.name,
             "default_model": prompt.default_model,
             "models": {
                 name: {"content": model.content, "parameters": model.parameters}
                 for name, model in prompt.models.items()
             }
         }
-        response = requests.put(f"{api_url}/prompts/{prompt.nombre}", json=data, headers=headers)
+        response = requests.put(f"{api_url}/prompts/{prompt.name}", json=data, headers=headers)
         response.raise_for_status()
     
-    # Crear plugin
+    # Create plugin
     PluginHandler = get_plugins_handler()
     handler = PluginHandler.create_connection(
         name="api_backend",
@@ -492,14 +492,14 @@ def create_api_backend(api_url, api_key):
     
     return handler
 
-# Usar el plugin
-handler = create_api_backend("https://api.ejemplo.com", "tu-api-key")
+# Use the plugin
+handler = create_api_backend("https://api.example.com", "your-api-key")
 ps = PromptSuite(handler)
 ```
 
-### Funciones Requeridas para Plugins
+### Required Functions for Plugins
 
-Para crear un plugin, debes proporcionar estas funciones obligatorias:
+To create a plugin, you must provide these mandatory functions:
 
 - `create_prompt_func(name, model_name, content, parameters, default_model=None)`
 - `get_prompt_func(name)`
@@ -508,34 +508,34 @@ Para crear un plugin, debes proporcionar estas funciones obligatorias:
 - `list_prompts_func()`
 - `save_prompt_func(prompt)`
 
-**Funciones opcionales:**
+**Optional functions:**
 - `get_history_func(name=None, model_name=None)`
 - `clear_history_func(name=None)`
 - `backup_func(backup_name)`
 
-### Ventajas de los Plugins
+### Plugin Advantages
 
-1. **Flexibilidad total** - Usa cualquier tecnología de almacenamiento
-2. **Independencia** - PromptSuite no conoce tu implementación
-3. **Escalabilidad** - Conecta con bases de datos distribuidas
-4. **Integración** - Conecta con sistemas existentes
-5. **Rendimiento** - Optimiza según tus necesidades específicas
+1. **Total flexibility** - Use any storage technology
+2. **Independence** - PromptSuite doesn't know your implementation
+3. **Scalability** - Connect to distributed databases
+4. **Integration** - Connect to existing systems
+5. **Performance** - Optimize according to your specific needs
 
-## Estructura de Datos
+## Data Structure
 
 ### Prompt JSON
 ```json
 {
-  "nombre": "saludo",
+  "name": "greeting",
   "default_model": "gpt-4",
   "models": {
     "gpt-4": {
-      "content": "Hola {name}, ¿cómo estás?",
+      "content": "Hello {name}, how are you?",
       "parameters": ["name"],
       "last_updated": "2024-01-15T10:30:00Z"
     },
     "claude-3": {
-      "content": "Saludos {name}",
+      "content": "Greetings {name}",
       "parameters": ["name"],
       "last_updated": "2024-01-15T11:00:00Z"
     }
@@ -546,21 +546,21 @@ Para crear un plugin, debes proporcionar estas funciones obligatorias:
 
 ### Prompt YAML
 ```yaml
-nombre: saludo
+name: greeting
 default_model: gpt-4
 models:
   gpt-4:
-    content: "Hola {name}, ¿cómo estás?"
+    content: "Hello {name}, how are you?"
     parameters: [name]
     last_updated: "2024-01-15T10:30:00Z"
   claude-3:
-    content: "Saludos {name}"
+    content: "Greetings {name}"
     parameters: [name]
     last_updated: "2024-01-15T11:00:00Z"
 last_updated: "2024-01-15T11:00:00Z"
 ```
 
-## API Completa
+## Complete API
 
 ### PromptSuite
 
@@ -569,7 +569,7 @@ last_updated: "2024-01-15T11:00:00Z"
 PromptSuite(file_path: str)
 ```
 
-#### Métodos principales
+#### Main Methods
 
 - `create_prompt(name, model_name, content, parameters, default_model=None)`
 - `get_prompt(name)`
@@ -587,52 +587,52 @@ PromptSuite(file_path: str)
 - `set_default_model(name, model_name)`
 - `get_prompt_info(name)`
 
-#### Propiedades
-- `file_info` - Información del archivo actual
+#### Properties
+- `file_info` - Current file information
 
-## Validaciones
+## Validations
 
 ### Templates
-- Los parámetros declarados deben coincidir con las variables del template
-- Parámetros faltantes o extra generan errores
-- Validación en tiempo de escritura y ejecución
+- Declared parameters must match template variables
+- Missing or extra parameters generate errors
+- Validation at write time and execution time
 
-### Nombres
-- Nombres únicos para prompts
-- Caracteres válidos (sin `/`, `\`, `:`, etc.)
-- Validación de modelos por defecto
+### Names
+- Unique names for prompts
+- Valid characters (no `/`, `\`, `:`, etc.)
+- Default model validation
 
-### Historial
-- Soft delete automático
-- Recuperación por timestamp
-- Filtrado por modelo
+### History
+- Automatic soft delete
+- Recovery by timestamp
+- Filtering by model
 
-## Optimizaciones de Rendimiento
+## Performance Optimizations
 
-### Imports Condicionales
+### Conditional Imports
 ```python
-# Solo carga lo necesario
-from prompt_suite import PromptSuite  # Lazy loading de handlers
+# Only loads what's necessary
+from prompt_suite import PromptSuite  # Lazy loading of handlers
 ```
 
-### Dependencias Opcionales
+### Optional Dependencies
 ```bash
-# Solo JSON optimizado
+# JSON only optimized
 pip install prompt-suite[json]
 
-# Solo YAML
+# YAML only
 pip install prompt-suite[yaml]
 
-# Todo optimizado
+# Everything optimized
 pip install prompt-suite[full]
 ```
 
-### Handlers Específicos
-- `JsonHandler` con soporte para `ujson`
-- `YamlHandler` con soporte para `CLoader`
-- Sin overhead de abstracción común
+### Specific Handlers
+- `JsonHandler` with `ujson` support
+- `YamlHandler` with `CLoader` support
+- No common abstraction overhead
 
-## Manejo de Errores
+## Error Handling
 
 ```python
 from prompt_suite import (
@@ -644,42 +644,42 @@ from prompt_suite import (
 )
 
 try:
-    ps.build_prompt("inexistente", {"param": "valor"})
+    ps.build_prompt("nonexistent", {"param": "value"})
 except PromptNotFoundError:
-    print("Prompt no encontrado")
+    print("Prompt not found")
 
 try:
-    ps.build_prompt("saludo", {})  # Falta parámetro
+    ps.build_prompt("greeting", {})  # Missing parameter
 except MissingParameterError:
-    print("Falta parámetro requerido")
+    print("Missing required parameter")
 ```
 
-## Contribuir
+## Contributing
 
-1. Fork el repositorio
-2. Crea una rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit tus cambios (`git commit -am 'Agregar nueva funcionalidad'`)
-4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
-5. Crea un Pull Request
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/new-feature`)
+3. Commit your changes (`git commit -am 'Add new feature'`)
+4. Push to the branch (`git push origin feature/new-feature`)
+5. Create a Pull Request
 
-## Licencia
+## License
 
-MIT License - ver [LICENSE](LICENSE) para detalles.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## Changelog
 
 ### v0.2.0 (Pre-Alpha)
-- ✅ **Sistema de plugins** para cualquier backend Python
-- ✅ **Plugins para SQLite** con base de datos completa
-- ✅ **Plugins para APIs externas** con soporte HTTP
-- ✅ **Plugins simples** basados en diccionario
-- ✅ **Soporte async/sync** en plugins
-- ✅ **Validación automática** de funciones de plugin
+- ✅ **Plugin system** for any Python backend
+- ✅ **SQLite plugins** with complete database
+- ✅ **External API plugins** with HTTP support
+- ✅ **Simple plugins** based on dictionary
+- ✅ **Async/sync support** in plugins
+- ✅ **Automatic validation** of plugin functions
 
 ### v0.1.0
-- Implementación inicial
-- Soporte JSON y YAML
-- Control de versiones completo
-- Validaciones estrictas
-- Alto rendimiento con imports condicionales
+- Initial implementation
+- JSON and YAML support
+- Complete version control
+- Strict validations
+- High performance with conditional imports
 

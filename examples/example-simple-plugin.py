@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Ejemplo completo de PromptSuite con plugin simple basado en diccionario
-Muestra todas las funciones disponibles a través de un plugin
+Complete PromptSuite example with simple dictionary-based plugin
+Shows all available functions through a plugin
 """
 from prompt_suite import PromptSuite
 from prompt_suite.handlers import get_plugins_handler
@@ -9,32 +9,32 @@ from typing import Dict, Any, List, Optional
 
 def create_simple_storage_backend():
     """
-    Crear un backend simple basado en diccionario
-    Esta función maneja TODO el almacenamiento de forma independiente
-    PromptSuite solo recibe las funciones, no sabe nada del diccionario
+    Create a simple dictionary-based backend
+    This function handles ALL storage independently
+    PromptSuite only receives the functions, knows nothing about the dictionary
     """
     
-    # ===== ALMACENAMIENTO INDEPENDIENTE =====
-    # Este diccionario es completamente independiente de PromptSuite
-    # PromptSuite no sabe que existe, solo llama a las funciones
+    # ===== INDEPENDENT STORAGE =====
+    # This dictionary is completely independent of PromptSuite
+    # PromptSuite doesn't know it exists, only calls the functions
     storage = {
-        "prompts": {},      # Almacena los prompts
-        "history": [],      # Almacena el historial
-        "backups": {}       # Almacena backups
+        "prompts": {},      # Stores prompts
+        "history": [],      # Stores history
+        "backups": {}       # Stores backups
     }
     
-    # ===== FUNCIONES PARA PROMPTSUITE =====
-    # PromptSuite solo conoce estas funciones, no el diccionario
+    # ===== FUNCTIONS FOR PROMPTSUITE =====
+    # PromptSuite only knows these functions, not the dictionary
     
     def create_prompt_func(name: str, model_name: str, content: str, 
                           parameters: List[str], default_model: Optional[str] = None):
-        """Función que PromptSuite llama para crear un prompt"""
+        """Function that PromptSuite calls to create a prompt"""
         if name in storage["prompts"]:
-            raise Exception(f"Prompt '{name}' ya existe")
+            raise Exception(f"Prompt '{name}' already exists")
         
-        # Crear el prompt en el diccionario
+        # Create prompt in dictionary
         storage["prompts"][name] = {
-            "nombre": name,
+            "name": name,
             "default_model": default_model or model_name,
             "models": {
                 model_name: {
@@ -44,7 +44,7 @@ def create_simple_storage_backend():
             }
         }
         
-        # Agregar al historial
+        # Add to history
         storage["history"].append({
             "action": "create",
             "prompt_name": name,
@@ -54,28 +54,28 @@ def create_simple_storage_backend():
         return storage["prompts"][name]
     
     def get_prompt_func(name: str):
-        """Función que PromptSuite llama para obtener un prompt"""
+        """Function that PromptSuite calls to get a prompt"""
         if name not in storage["prompts"]:
-            raise Exception(f"Prompt '{name}' no encontrado")
+            raise Exception(f"Prompt '{name}' not found")
         return storage["prompts"][name]
     
     def update_prompt_func(name: str, new_name: Optional[str] = None, 
                           default_model: Optional[str] = None):
-        """Función que PromptSuite llama para actualizar un prompt"""
+        """Function that PromptSuite calls to update a prompt"""
         if name not in storage["prompts"]:
-            raise Exception(f"Prompt '{name}' no encontrado")
+            raise Exception(f"Prompt '{name}' not found")
         
         if new_name:
-            # Renombrar prompt
+            # Rename prompt
             storage["prompts"][new_name] = storage["prompts"].pop(name)
-            storage["prompts"][new_name]["nombre"] = new_name
+            storage["prompts"][new_name]["name"] = new_name
         
         if default_model:
-            # Actualizar modelo por defecto
+            # Update default model
             target_name = new_name or name
             storage["prompts"][target_name]["default_model"] = default_model
         
-        # Agregar al historial
+        # Add to history
         storage["history"].append({
             "action": "update",
             "prompt_name": name,
@@ -84,11 +84,11 @@ def create_simple_storage_backend():
         })
     
     def delete_prompt_func(name: str):
-        """Función que PromptSuite llama para eliminar un prompt"""
+        """Function that PromptSuite calls to delete a prompt"""
         if name in storage["prompts"]:
             del storage["prompts"][name]
             
-            # Agregar al historial
+            # Add to history
             storage["history"].append({
                 "action": "delete",
                 "prompt_name": name,
@@ -96,13 +96,13 @@ def create_simple_storage_backend():
             })
     
     def list_prompts_func():
-        """Función que PromptSuite llama para listar prompts"""
+        """Function that PromptSuite calls to list prompts"""
         return list(storage["prompts"].keys())
     
     def save_prompt_func(prompt):
-        """Función que PromptSuite llama para guardar un prompt"""
-        storage["prompts"][prompt.nombre] = {
-            "nombre": prompt.nombre,
+        """Function that PromptSuite calls to save a prompt"""
+        storage["prompts"][prompt.name] = {
+            "name": prompt.name,
             "default_model": prompt.default_model,
             "models": {
                 name: {
@@ -113,28 +113,28 @@ def create_simple_storage_backend():
             }
         }
         
-        # Agregar al historial
+        # Add to history
         storage["history"].append({
             "action": "save",
-            "prompt_name": prompt.nombre,
+            "prompt_name": prompt.name,
             "timestamp": "2024-01-01 12:00:00"
         })
     
     def get_history_func():
-        """Función que PromptSuite llama para obtener historial"""
+        """Function that PromptSuite calls to get history"""
         return storage["history"]
     
     def clear_history_func():
-        """Función que PromptSuite llama para limpiar historial"""
+        """Function that PromptSuite calls to clear history"""
         storage["history"] = []
     
     def backup_func(backup_name: str):
-        """Función que PromptSuite llama para crear backup"""
+        """Function that PromptSuite calls to create backup"""
         storage["backups"][backup_name] = storage["prompts"].copy()
         return f"backup_{backup_name}"
     
-    # ===== CREAR PLUGIN PARA PROMPTSUITE =====
-    # PromptSuite solo recibe estas funciones, no sabe nada del diccionario
+    # ===== CREATE PLUGIN FOR PROMPTSUITE =====
+    # PromptSuite only receives these functions, knows nothing about the dictionary
     PluginHandler = get_plugins_handler()
     handler = PluginHandler.create_connection(
         name="simple_storage_backend",
@@ -149,206 +149,206 @@ def create_simple_storage_backend():
         backup_func=backup_func
     )
     
-    return handler, storage  # Retornamos también storage para mostrar el estado
+    return handler, storage  # We also return storage to show the state
 
 def main():
-    print("🚀 PromptSuite - Ejemplo Completo con Plugin Simple")
+    print("🚀 PromptSuite - Complete Example with Simple Plugin")
     print("=" * 55)
     
-    # Crear backend simple
+    # Create simple backend
     handler, storage = create_simple_storage_backend()
     
-    # Inicializar PromptSuite con el plugin
+    # Initialize PromptSuite with the plugin
     ps = PromptSuite(handler)
     
-    print(f"✅ PromptSuite inicializado con: {ps.source_info}")
-    print(f"📊 Estado inicial del storage: {len(storage['prompts'])} prompts")
+    print(f"✅ PromptSuite initialized with: {ps.source_info}")
+    print(f"📊 Initial storage state: {len(storage['prompts'])} prompts")
     
-    # ===== 1. CREAR PROMPTS =====
-    print("\n📝 1. CREAR PROMPTS")
+    # ===== 1. CREATE PROMPTS =====
+    print("\n📝 1. CREATE PROMPTS")
     print("-" * 20)
     
-    # Crear prompt básico
+    # Create basic prompt
     ps.create_prompt(
-        name="saludo",
+        name="greeting",
         model_name="gpt-4",
-        content="Hola {nombre}, ¿cómo estás?",
-        parameters=["nombre"]
+        content="Hello {name}, how are you?",
+        parameters=["name"]
     )
-    print("✅ Prompt 'saludo' creado")
-    print(f"📊 Storage ahora tiene: {len(storage['prompts'])} prompts")
+    print("✅ Prompt 'greeting' created")
+    print(f"📊 Storage now has: {len(storage['prompts'])} prompts")
     
-    # Crear prompt con modelo por defecto
+    # Create prompt with default model
     ps.create_prompt(
-        name="analisis",
+        name="analysis",
         model_name="claude",
-        content="Analiza el siguiente texto: {texto}",
-        parameters=["texto"],
+        content="Analyze the following text: {text}",
+        parameters=["text"],
         default_model="claude"
     )
-    print("✅ Prompt 'analisis' creado")
+    print("✅ Prompt 'analysis' created")
     
-    # Crear prompt complejo
+    # Create complex prompt
     ps.create_prompt(
-        name="traduccion",
+        name="translation",
         model_name="gpt-4",
-        content="Traduce '{texto}' del {idioma_origen} al {idioma_destino}",
-        parameters=["texto", "idioma_origen", "idioma_destino"]
+        content="Translate '{text}' from {source_language} to {target_language}",
+        parameters=["text", "source_language", "target_language"]
     )
-    print("✅ Prompt 'traduccion' creado")
+    print("✅ Prompt 'translation' created")
     
-    # ===== 2. AGREGAR MODELOS =====
-    print("\n➕ 2. AGREGAR MODELOS")
+    # ===== 2. ADD MODELS =====
+    print("\n➕ 2. ADD MODELS")
     print("-" * 20)
     
-    # Agregar modelo adicional al prompt 'saludo'
+    # Add additional model to 'greeting' prompt
     ps.add_model(
-        name="saludo",
+        name="greeting",
         model_name="claude",
-        content="¡Hola {nombre}! ¿Todo bien?",
-        parameters=["nombre"]
+        content="Hi {name}! How are you doing?",
+        parameters=["name"]
     )
-    print("✅ Modelo 'claude' agregado a 'saludo'")
+    print("✅ Model 'claude' added to 'greeting'")
     
-    # Agregar modelo adicional al prompt 'analisis'
+    # Add additional model to 'analysis' prompt
     ps.add_model(
-        name="analisis",
+        name="analysis",
         model_name="gpt-4",
-        content="Realiza un análisis detallado de: {texto}",
-        parameters=["texto"]
+        content="Perform a detailed analysis of: {text}",
+        parameters=["text"]
     )
-    print("✅ Modelo 'gpt-4' agregado a 'analisis'")
+    print("✅ Model 'gpt-4' added to 'analysis'")
     
-    # ===== 3. CONSTRUIR PROMPTS =====
-    print("\n🔨 3. CONSTRUIR PROMPTS")
+    # ===== 3. BUILD PROMPTS =====
+    print("\n🔨 3. BUILD PROMPTS")
     print("-" * 20)
     
-    # Construir con modelo por defecto
-    saludo_gpt = ps.build_prompt("saludo", {"nombre": "Juan"})
-    print(f"Saludo GPT-4: {saludo_gpt}")
+    # Build with default model
+    greeting_gpt = ps.build_prompt("greeting", {"name": "John"})
+    print(f"GPT-4 Greeting: {greeting_gpt}")
     
-    # Construir con modelo específico
-    saludo_claude = ps.build_prompt("saludo", {"nombre": "María"}, model_name="claude")
-    print(f"Saludo Claude: {saludo_claude}")
+    # Build with specific model
+    greeting_claude = ps.build_prompt("greeting", {"name": "Mary"}, model_name="claude")
+    print(f"Claude Greeting: {greeting_claude}")
     
-    # Construir prompt de análisis
-    analisis = ps.build_prompt("analisis", {"texto": "Este es un texto de prueba para analizar"})
-    print(f"Análisis: {analisis}")
+    # Build analysis prompt
+    analysis = ps.build_prompt("analysis", {"text": "This is a test text to analyze"})
+    print(f"Analysis: {analysis}")
     
-    # Construir prompt de traducción
-    traduccion = ps.build_prompt("traduccion", {
-        "texto": "Hello world",
-        "idioma_origen": "inglés",
-        "idioma_destino": "español"
+    # Build translation prompt
+    translation = ps.build_prompt("translation", {
+        "text": "Hello world",
+        "source_language": "English",
+        "target_language": "Spanish"
     })
-    print(f"Traducción: {traduccion}")
+    print(f"Translation: {translation}")
     
-    # ===== 4. OBTENER INFORMACIÓN =====
-    print("\n📊 4. OBTENER INFORMACIÓN")
+    # ===== 4. GET INFORMATION =====
+    print("\n📊 4. GET INFORMATION")
     print("-" * 20)
     
-    # Listar todos los prompts
+    # List all prompts
     prompts = ps.list_prompts()
-    print(f"Prompts disponibles: {prompts}")
+    print(f"Available prompts: {prompts}")
     
-    # Obtener información de un prompt específico
-    info_saludo = ps.get_prompt_info("saludo")
-    print(f"Info del prompt 'saludo':")
-    print(f"  - Modelos: {list(info_saludo['models'].keys())}")
-    print(f"  - Modelo por defecto: {info_saludo['default_model']}")
+    # Get information of a specific prompt
+    greeting_info = ps.get_prompt_info("greeting")
+    print(f"Info for prompt 'greeting':")
+    print(f"  - Models: {list(greeting_info['models'].keys())}")
+    print(f"  - Default model: {greeting_info['default_model']}")
     
-    # Obtener prompt completo
-    prompt_completo = ps.get_prompt("saludo")
-    print(f"Prompt completo 'saludo': {prompt_completo}")
+    # Get complete prompt
+    complete_prompt = ps.get_prompt("greeting")
+    print(f"Complete prompt 'greeting': {complete_prompt}")
     
-    # ===== 5. ACTUALIZAR PROMPTS =====
-    print("\n✏️ 5. ACTUALIZAR PROMPTS")
+    # ===== 5. UPDATE PROMPTS =====
+    print("\n✏️ 5. UPDATE PROMPTS")
     print("-" * 20)
     
-    # Actualizar modelo por defecto
+    # Update default model
     ps.update_model(
-        name="saludo",
+        name="greeting",
         model_name="gpt-4",
-        content="¡Hola {nombre}! ¿Cómo te va?",
-        parameters=["nombre"]
+        content="Hello {name}! How are you doing?",
+        parameters=["name"]
     )
-    print("✅ Modelo 'gpt-4' de 'saludo' actualizado")
+    print("✅ Model 'gpt-4' of 'greeting' updated")
     
-    # Actualizar prompt (cambiar nombre)
-    ps.update_prompt("saludo", new_name="saludo_actualizado")
-    print("✅ Prompt 'saludo' renombrado a 'saludo_actualizado'")
+    # Update prompt (change name)
+    ps.update_prompt("greeting", new_name="updated_greeting")
+    print("✅ Prompt 'greeting' renamed to 'updated_greeting'")
     
-    # Probar el prompt actualizado
-    saludo_actualizado = ps.build_prompt("saludo_actualizado", {"nombre": "Carlos"})
-    print(f"Saludo actualizado: {saludo_actualizado}")
+    # Test the updated prompt
+    updated_greeting = ps.build_prompt("updated_greeting", {"name": "Carlos"})
+    print(f"Updated greeting: {updated_greeting}")
     
-    # ===== 6. HISTORIAL Y BACKUP =====
-    print("\n📚 6. HISTORIAL Y BACKUP")
+    # ===== 6. HISTORY AND BACKUP =====
+    print("\n📚 6. HISTORY AND BACKUP")
     print("-" * 20)
     
-    # Crear backup
+    # Create backup
     backup_path = ps.backup("backup_prompts")
-    print(f"✅ Backup creado en: {backup_path}")
+    print(f"✅ Backup created at: {backup_path}")
     
-    # Obtener historial
+    # Get history
     history = ps.get_history()
-    print(f"Historial: {len(history)} entradas")
+    print(f"History: {len(history)} entries")
     for entry in history:
         print(f"  - {entry['action']}: {entry['prompt_name']}")
     
-    # ===== 7. ELIMINAR ELEMENTOS =====
-    print("\n🗑️ 7. ELIMINAR ELEMENTOS")
+    # ===== 7. DELETE ELEMENTS =====
+    print("\n🗑️ 7. DELETE ELEMENTS")
     print("-" * 20)
     
-    # Eliminar modelo específico
-    ps.remove_model("saludo_actualizado", "claude")
-    print("✅ Modelo 'claude' eliminado de 'saludo_actualizado'")
+    # Delete specific model
+    ps.remove_model("updated_greeting", "claude")
+    print("✅ Model 'claude' deleted from 'updated_greeting'")
     
-    # Eliminar prompt completo
-    ps.delete_prompt("traduccion")
-    print("✅ Prompt 'traduccion' eliminado")
+    # Delete complete prompt
+    ps.delete_prompt("translation")
+    print("✅ Prompt 'translation' deleted")
     
-    # Listar prompts después de eliminaciones
-    prompts_finales = ps.list_prompts()
-    print(f"Prompts finales: {prompts_finales}")
+    # List prompts after deletions
+    final_prompts = ps.list_prompts()
+    print(f"Final prompts: {final_prompts}")
     
-    # ===== 8. RESTAURAR DESDE BACKUP =====
-    print("\n🔄 8. RESTAURAR DESDE BACKUP")
+    # ===== 8. RESTORE FROM BACKUP =====
+    print("\n🔄 8. RESTORE FROM BACKUP")
     print("-" * 20)
     
-    # Restaurar prompt desde backup
-    ps.restore_prompt("traduccion", "backup_prompts")
-    print("✅ Prompt 'traduccion' restaurado desde backup")
+    # Restore prompt from backup
+    ps.restore_prompt("translation", "backup_prompts")
+    print("✅ Prompt 'translation' restored from backup")
     
-    # Verificar restauración
-    traduccion_restaurada = ps.build_prompt("traduccion", {
-        "texto": "Good morning",
-        "idioma_origen": "inglés",
-        "idioma_destino": "español"
+    # Verify restoration
+    restored_translation = ps.build_prompt("translation", {
+        "text": "Good morning",
+        "source_language": "English",
+        "target_language": "Spanish"
     })
-    print(f"Traducción restaurada: {traduccion_restaurada}")
+    print(f"Restored translation: {restored_translation}")
     
-    # ===== 9. INFORMACIÓN FINAL =====
-    print("\n📋 9. INFORMACIÓN FINAL")
+    # ===== 9. FINAL INFORMATION =====
+    print("\n📋 9. FINAL INFORMATION")
     print("-" * 20)
     
     print(f"Plugin: {ps.source_info}")
-    print(f"Prompts finales: {ps.list_prompts()}")
+    print(f"Final prompts: {ps.list_prompts()}")
     
-    # Mostrar estado del storage (para demostrar que es independiente)
-    print(f"\n📊 Estado final del storage:")
+    # Show storage state (to demonstrate it's independent)
+    print(f"\n📊 Final storage state:")
     print(f"  - Prompts: {list(storage['prompts'].keys())}")
-    print(f"  - Historial: {len(storage['history'])} entradas")
+    print(f"  - History: {len(storage['history'])} entries")
     print(f"  - Backups: {list(storage['backups'].keys())}")
     
-    # Mostrar contenido del storage
-    print(f"\n📄 Contenido del storage:")
+    # Show storage content
+    print(f"\n📄 Storage content:")
     import json
     print(json.dumps(storage, indent=2, ensure_ascii=False))
     
-    print("\n🎉 ¡Ejemplo de Plugin Simple completado exitosamente!")
-    print("💡 Nota: PromptSuite no sabe nada del diccionario 'storage'")
-    print("   Solo llama a las funciones que le proporcionamos")
+    print("\n🎉 Simple Plugin example completed successfully!")
+    print("💡 Note: PromptSuite knows nothing about the 'storage' dictionary")
+    print("   It only calls the functions we provide")
 
 if __name__ == "__main__":
     main()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Ejemplo completo de PromptSuite con plugin basado en SQLite
-Muestra todas las funciones disponibles a través de un plugin
+Complete PromptSuite example with SQLite-based plugin
+Shows all available functions through a plugin
 """
 from prompt_suite import PromptSuite
 from prompt_suite.handlers import get_plugins_handler
@@ -12,22 +12,22 @@ from datetime import datetime
 
 def create_sqlite_backend():
     """
-    Crear un backend basado en SQLite
-    Esta función maneja TODO el almacenamiento de forma independiente
-    PromptSuite solo recibe las funciones, no sabe nada de SQLite
+    Create a SQLite-based backend
+    This function handles ALL storage independently
+    PromptSuite only receives the functions, knows nothing about SQLite
     """
     
-    # ===== CONFIGURACIÓN DE BASE DE DATOS =====
-    # Esta base de datos es completamente independiente de PromptSuite
-    # PromptSuite no sabe que existe, solo llama a las funciones
+    # ===== DATABASE CONFIGURATION =====
+    # This database is completely independent of PromptSuite
+    # PromptSuite doesn't know it exists, only calls the functions
     db_path = "prompts.db"
     
     def init_database():
-        """Inicializar la base de datos SQLite"""
+        """Initialize SQLite database"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Tabla de prompts
+        # Prompts table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS prompts (
                 name TEXT PRIMARY KEY,
@@ -37,7 +37,7 @@ def create_sqlite_backend():
             )
         ''')
         
-        # Tabla de modelos
+        # Models table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS models (
                 prompt_name TEXT,
@@ -51,7 +51,7 @@ def create_sqlite_backend():
             )
         ''')
         
-        # Tabla de historial
+        # History table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,7 +62,7 @@ def create_sqlite_backend():
             )
         ''')
         
-        # Tabla de backups
+        # Backups table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS backups (
                 backup_name TEXT PRIMARY KEY,
@@ -74,127 +74,122 @@ def create_sqlite_backend():
         conn.commit()
         conn.close()
     
-    # Inicializar la base de datos
+    # Initialize database
     init_database()
     
-    # ===== FUNCIONES PARA PROMPTSUITE =====
-    # PromptSuite solo conoce estas funciones, no la base de datos
+    # ===== FUNCTIONS FOR PROMPTSUITE =====
+    # PromptSuite only knows these functions, not the database
     
     def create_prompt_func(name: str, model_name: str, content: str, 
                           parameters: List[str], default_model: Optional[str] = None):
-        """Función que PromptSuite llama para crear un prompt"""
+        """Function that PromptSuite calls to create a prompt"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
         try:
-            # Insertar prompt
+            # Insert prompt
             cursor.execute(
                 'INSERT INTO prompts (name, default_model) VALUES (?, ?)',
                 (name, default_model or model_name)
             )
             
-            # Insertar modelo
+            # Insert model
             cursor.execute(
                 'INSERT INTO models (prompt_name, model_name, content, parameters) VALUES (?, ?, ?, ?)',
                 (name, model_name, content, json.dumps(parameters))
             )
             
-            # Registrar en historial
+            # Add to history
             cursor.execute(
                 'INSERT INTO history (action, prompt_name, details) VALUES (?, ?, ?)',
-                ('create', name, json.dumps({'model_name': model_name, 'content': content}))
+                ('create', name, json.dumps({'model_name': model_name, 'parameters': parameters}))
             )
             
             conn.commit()
+            conn.close()
             
-            # Retornar el prompt creado
-            return get_prompt_func(name)
+            return {"name": name, "default_model": default_model or model_name}
             
         except sqlite3.IntegrityError:
-            raise Exception(f"Prompt '{name}' ya existe")
-        finally:
+            conn.rollback()
             conn.close()
+            raise Exception(f"Prompt '{name}' already exists")
     
     def get_prompt_func(name: str):
-        """Función que PromptSuite llama para obtener un prompt"""
+        """Function that PromptSuite calls to get a prompt"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Obtener prompt
-        cursor.execute('SELECT default_model FROM prompts WHERE name = ?', (name,))
+        cursor.execute('SELECT * FROM prompts WHERE name = ?', (name,))
         prompt_data = cursor.fetchone()
         
-        if not prompt_data:
-            raise Exception(f"Prompt '{name}' no encontrado")
-        
-        default_model = prompt_data[0]
-        
-        # Obtener modelos
-        cursor.execute(
-            'SELECT model_name, content, parameters FROM models WHERE prompt_name = ?',
-            (name,)
-        )
+        cursor.execute('SELECT * FROM models WHERE prompt_name = ?', (name,))
         models_data = cursor.fetchall()
-        
-        models = {}
-        for model_name, content, parameters_json in models_data:
-            parameters = json.loads(parameters_json)
-            models[model_name] = {
-                "content": content,
-                "parameters": parameters
-            }
         
         conn.close()
         
+        if not prompt_data:
+            raise Exception(f"Prompt '{name}' not found")
+        
+        models = {}
+        for model_row in models_data:
+            models[model_row[1]] = {
+                "content": model_row[2],
+                "parameters": json.loads(model_row[3])
+            }
+        
         return {
-            "nombre": name,
-            "default_model": default_model,
+            "name": prompt_data[0],
+            "default_model": prompt_data[1],
             "models": models
         }
     
     def update_prompt_func(name: str, new_name: Optional[str] = None, 
                           default_model: Optional[str] = None):
-        """Función que PromptSuite llama para actualizar un prompt"""
+        """Function that PromptSuite calls to update a prompt"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
+        if name not in [row[0] for row in cursor.execute('SELECT name FROM prompts')]:
+            conn.close()
+            raise Exception(f"Prompt '{name}' not found")
+        
         if new_name:
-            # Renombrar prompt
+            # Rename prompt
+            cursor.execute('UPDATE prompts SET name = ? WHERE name = ?', (new_name, name))
+            cursor.execute('UPDATE models SET prompt_name = ? WHERE prompt_name = ?', (new_name, name))
+            
+            # Add to history
             cursor.execute(
-                'UPDATE prompts SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?',
-                (new_name, name)
-            )
-            cursor.execute(
-                'UPDATE models SET prompt_name = ?, updated_at = CURRENT_TIMESTAMP WHERE prompt_name = ?',
-                (new_name, name)
+                'INSERT INTO history (action, prompt_name, details) VALUES (?, ?, ?)',
+                ('rename', name, json.dumps({'new_name': new_name}))
             )
         
         if default_model:
-            # Actualizar modelo por defecto
+            # Update default model
             target_name = new_name or name
             cursor.execute(
-                'UPDATE prompts SET default_model = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?',
+                'UPDATE prompts SET default_model = ? WHERE name = ?',
                 (default_model, target_name)
             )
-        
-        # Registrar en historial
-        cursor.execute(
-            'INSERT INTO history (action, prompt_name, details) VALUES (?, ?, ?)',
-            ('update', name, json.dumps({'new_name': new_name, 'default_model': default_model}))
-        )
+            
+            # Add to history
+            cursor.execute(
+                'INSERT INTO history (action, prompt_name, details) VALUES (?, ?, ?)',
+                ('update_default', target_name, json.dumps({'default_model': default_model}))
+            )
         
         conn.commit()
         conn.close()
     
     def delete_prompt_func(name: str):
-        """Función que PromptSuite llama para eliminar un prompt"""
+        """Function that PromptSuite calls to delete a prompt"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Eliminar prompt (los modelos se eliminan automáticamente por CASCADE)
         cursor.execute('DELETE FROM prompts WHERE name = ?', (name,))
         
-        # Registrar en historial
+        # Add to history
         cursor.execute(
             'INSERT INTO history (action, prompt_name, details) VALUES (?, ?, ?)',
             ('delete', name, '{}')
@@ -204,109 +199,97 @@ def create_sqlite_backend():
         conn.close()
     
     def list_prompts_func():
-        """Función que PromptSuite llama para listar prompts"""
+        """Function that PromptSuite calls to list prompts"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        
-        cursor.execute('SELECT name FROM prompts ORDER BY name')
+        cursor.execute('SELECT name FROM prompts')
         prompts = [row[0] for row in cursor.fetchall()]
-        
         conn.close()
         return prompts
     
     def save_prompt_func(prompt):
-        """Función que PromptSuite llama para guardar un prompt"""
+        """Function that PromptSuite calls to save a prompt"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Actualizar prompt
+        # Update prompt
         cursor.execute(
-            'UPDATE prompts SET default_model = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?',
-            (prompt.default_model, prompt.nombre)
+            'UPDATE prompts SET default_model = ? WHERE name = ?',
+            (prompt.default_model, prompt.name)
         )
         
-        # Actualizar modelos
+        # Update models
         for model_name, model in prompt.models.items():
             cursor.execute('''
-                INSERT OR REPLACE INTO models (prompt_name, model_name, content, parameters, updated_at)
-                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ''', (prompt.nombre, model_name, model.content, json.dumps(model.parameters)))
+                INSERT OR REPLACE INTO models 
+                (prompt_name, model_name, content, parameters) 
+                VALUES (?, ?, ?, ?)
+            ''', (prompt.name, model_name, model.content, json.dumps(model.parameters)))
         
-        # Registrar en historial
+        # Add to history
         cursor.execute(
             'INSERT INTO history (action, prompt_name, details) VALUES (?, ?, ?)',
-            ('save', prompt.nombre, json.dumps({'models_count': len(prompt.models)}))
+            ('save', prompt.name, json.dumps({'models': list(prompt.models.keys())}))
         )
         
         conn.commit()
         conn.close()
     
     def get_history_func():
-        """Función que PromptSuite llama para obtener historial"""
+        """Function that PromptSuite calls to get history"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT action, prompt_name, details, timestamp 
-            FROM history 
-            ORDER BY timestamp DESC
-        ''')
-        
+        cursor.execute('SELECT * FROM history ORDER BY timestamp DESC')
         history = []
-        for action, prompt_name, details, timestamp in cursor.fetchall():
+        for row in cursor.fetchall():
             history.append({
-                "action": action,
-                "prompt_name": prompt_name,
-                "details": json.loads(details) if details else {},
-                "timestamp": timestamp
+                "id": row[0],
+                "action": row[1],
+                "prompt_name": row[2],
+                "details": json.loads(row[3]) if row[3] else {},
+                "timestamp": row[4]
             })
-        
         conn.close()
         return history
     
     def clear_history_func():
-        """Función que PromptSuite llama para limpiar historial"""
+        """Function that PromptSuite calls to clear history"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        
         cursor.execute('DELETE FROM history')
-        
         conn.commit()
         conn.close()
     
     def backup_func(backup_name: str):
-        """Función que PromptSuite llama para crear backup"""
+        """Function that PromptSuite calls to create backup"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Obtener todos los prompts
-        cursor.execute('SELECT name, default_model FROM prompts')
+        cursor.execute('SELECT * FROM prompts')
         prompts_data = cursor.fetchall()
         
         backup_data = {}
-        for name, default_model in prompts_data:
-            # Obtener modelos del prompt
-            cursor.execute(
-                'SELECT model_name, content, parameters FROM models WHERE prompt_name = ?',
-                (name,)
-            )
+        for prompt_row in prompts_data:
+            name = prompt_row[0]
+            default_model = prompt_row[1]
+            
+            cursor.execute('SELECT * FROM models WHERE prompt_name = ?', (name,))
             models_data = cursor.fetchall()
             
             models = {}
-            for model_name, content, parameters_json in models_data:
-                parameters = json.loads(parameters_json)
-                models[model_name] = {
-                    "content": content,
-                    "parameters": parameters
+            for model_row in models_data:
+                models[model_row[1]] = {
+                    "content": model_row[2],
+                    "parameters": json.loads(model_row[3])
                 }
             
             backup_data[name] = {
-                "nombre": name,
+                "name": name,
                 "default_model": default_model,
                 "models": models
             }
         
-        # Guardar backup en la base de datos
+        # Save backup to database
         cursor.execute(
             'INSERT OR REPLACE INTO backups (backup_name, data) VALUES (?, ?)',
             (backup_name, json.dumps(backup_data))
@@ -317,8 +300,8 @@ def create_sqlite_backend():
         
         return f"backup_{backup_name}"
     
-    # ===== CREAR PLUGIN PARA PROMPTSUITE =====
-    # PromptSuite solo recibe estas funciones, no sabe nada de SQLite
+    # ===== CREATE PLUGIN FOR PROMPTSUITE =====
+    # PromptSuite only receives these functions, knows nothing about SQLite
     PluginHandler = get_plugins_handler()
     handler = PluginHandler.create_connection(
         name="sqlite_backend",
@@ -336,194 +319,194 @@ def create_sqlite_backend():
     return handler, db_path
 
 def main():
-    print("🚀 PromptSuite - Ejemplo Completo con Plugin SQLite")
+    print("🚀 PromptSuite - Complete Example with SQLite Plugin")
     print("=" * 55)
     
-    # Crear backend SQLite
+    # Create SQLite backend
     handler, db_path = create_sqlite_backend()
     
-    # Inicializar PromptSuite con el plugin
+    # Initialize PromptSuite with the plugin
     ps = PromptSuite(handler)
     
-    print(f"✅ PromptSuite inicializado con: {ps.source_info}")
-    print(f"🗄️ Base de datos SQLite: {db_path}")
+    print(f"✅ PromptSuite initialized with: {ps.source_info}")
+    print(f"🗄️ SQLite database: {db_path}")
     
-    # ===== 1. CREAR PROMPTS =====
-    print("\n📝 1. CREAR PROMPTS")
+    # ===== 1. CREATE PROMPTS =====
+    print("\n📝 1. CREATE PROMPTS")
     print("-" * 20)
     
-    # Crear prompt básico
+    # Create basic prompt
     ps.create_prompt(
-        name="saludo",
+        name="greeting",
         model_name="gpt-4",
-        content="Hola {nombre}, ¿cómo estás?",
-        parameters=["nombre"]
+        content="Hello {name}, how are you?",
+        parameters=["name"]
     )
-    print("✅ Prompt 'saludo' creado en SQLite")
+    print("✅ Prompt 'greeting' created in SQLite")
     
-    # Crear prompt con modelo por defecto
+    # Create prompt with default model
     ps.create_prompt(
-        name="analisis",
+        name="analysis",
         model_name="claude",
-        content="Analiza el siguiente texto: {texto}",
-        parameters=["texto"],
+        content="Analyze the following text: {text}",
+        parameters=["text"],
         default_model="claude"
     )
-    print("✅ Prompt 'analisis' creado en SQLite")
+    print("✅ Prompt 'analysis' created in SQLite")
     
-    # Crear prompt complejo
+    # Create complex prompt
     ps.create_prompt(
-        name="traduccion",
+        name="translation",
         model_name="gpt-4",
-        content="Traduce '{texto}' del {idioma_origen} al {idioma_destino}",
-        parameters=["texto", "idioma_origen", "idioma_destino"]
+        content="Translate '{text}' from {source_language} to {target_language}",
+        parameters=["text", "source_language", "target_language"]
     )
-    print("✅ Prompt 'traduccion' creado en SQLite")
+    print("✅ Prompt 'translation' created in SQLite")
     
-    # ===== 2. AGREGAR MODELOS =====
-    print("\n➕ 2. AGREGAR MODELOS")
+    # ===== 2. ADD MODELS =====
+    print("\n➕ 2. ADD MODELS")
     print("-" * 20)
     
-    # Agregar modelo adicional al prompt 'saludo'
+    # Add additional model to 'greeting' prompt
     ps.add_model(
-        name="saludo",
+        name="greeting",
         model_name="claude",
-        content="¡Hola {nombre}! ¿Todo bien?",
-        parameters=["nombre"]
+        content="Hi {name}! How are you doing?",
+        parameters=["name"]
     )
-    print("✅ Modelo 'claude' agregado a 'saludo' en SQLite")
+    print("✅ Model 'claude' added to 'greeting' in SQLite")
     
-    # Agregar modelo adicional al prompt 'analisis'
+    # Add additional model to 'analysis' prompt
     ps.add_model(
-        name="analisis",
+        name="analysis",
         model_name="gpt-4",
-        content="Realiza un análisis detallado de: {texto}",
-        parameters=["texto"]
+        content="Perform a detailed analysis of: {text}",
+        parameters=["text"]
     )
-    print("✅ Modelo 'gpt-4' agregado a 'analisis' en SQLite")
+    print("✅ Model 'gpt-4' added to 'analysis' in SQLite")
     
-    # ===== 3. CONSTRUIR PROMPTS =====
-    print("\n🔨 3. CONSTRUIR PROMPTS")
+    # ===== 3. BUILD PROMPTS =====
+    print("\n🔨 3. BUILD PROMPTS")
     print("-" * 20)
     
-    # Construir con modelo por defecto
-    saludo_gpt = ps.build_prompt("saludo", {"nombre": "Juan"})
-    print(f"Saludo GPT-4: {saludo_gpt}")
+    # Build with default model
+    greeting_gpt = ps.build_prompt("greeting", {"name": "John"})
+    print(f"GPT-4 Greeting: {greeting_gpt}")
     
-    # Construir con modelo específico
-    saludo_claude = ps.build_prompt("saludo", {"nombre": "María"}, model_name="claude")
-    print(f"Saludo Claude: {saludo_claude}")
+    # Build with specific model
+    greeting_claude = ps.build_prompt("greeting", {"name": "Mary"}, model_name="claude")
+    print(f"Claude Greeting: {greeting_claude}")
     
-    # Construir prompt de análisis
-    analisis = ps.build_prompt("analisis", {"texto": "Este es un texto de prueba para analizar"})
-    print(f"Análisis: {analisis}")
+    # Build analysis prompt
+    analysis = ps.build_prompt("analysis", {"text": "This is a test text to analyze"})
+    print(f"Analysis: {analysis}")
     
-    # Construir prompt de traducción
-    traduccion = ps.build_prompt("traduccion", {
-        "texto": "Hello world",
-        "idioma_origen": "inglés",
-        "idioma_destino": "español"
+    # Build translation prompt
+    translation = ps.build_prompt("translation", {
+        "text": "Hello world",
+        "source_language": "English",
+        "target_language": "Spanish"
     })
-    print(f"Traducción: {traduccion}")
+    print(f"Translation: {translation}")
     
-    # ===== 4. OBTENER INFORMACIÓN =====
-    print("\n📊 4. OBTENER INFORMACIÓN")
+    # ===== 4. GET INFORMATION =====
+    print("\n📊 4. GET INFORMATION")
     print("-" * 20)
     
-    # Listar todos los prompts
+    # List all prompts
     prompts = ps.list_prompts()
-    print(f"Prompts disponibles en SQLite: {prompts}")
+    print(f"Available prompts in SQLite: {prompts}")
     
-    # Obtener información de un prompt específico
-    info_saludo = ps.get_prompt_info("saludo")
-    print(f"Info del prompt 'saludo':")
-    print(f"  - Modelos: {list(info_saludo['models'].keys())}")
-    print(f"  - Modelo por defecto: {info_saludo['default_model']}")
+    # Get information of a specific prompt
+    greeting_info = ps.get_prompt_info("greeting")
+    print(f"Info for prompt 'greeting':")
+    print(f"  - Models: {list(greeting_info['models'].keys())}")
+    print(f"  - Default model: {greeting_info['default_model']}")
     
-    # Obtener prompt completo
-    prompt_completo = ps.get_prompt("saludo")
-    print(f"Prompt completo 'saludo': {prompt_completo}")
+    # Get complete prompt
+    complete_prompt = ps.get_prompt("greeting")
+    print(f"Complete prompt 'greeting': {complete_prompt}")
     
-    # ===== 5. ACTUALIZAR PROMPTS =====
-    print("\n✏️ 5. ACTUALIZAR PROMPTS")
+    # ===== 5. UPDATE PROMPTS =====
+    print("\n✏️ 5. UPDATE PROMPTS")
     print("-" * 20)
     
-    # Actualizar modelo por defecto
+    # Update default model
     ps.update_model(
-        name="saludo",
+        name="greeting",
         model_name="gpt-4",
-        content="¡Hola {nombre}! ¿Cómo te va?",
-        parameters=["nombre"]
+        content="Hello {name}! How are you doing?",
+        parameters=["name"]
     )
-    print("✅ Modelo 'gpt-4' de 'saludo' actualizado en SQLite")
+    print("✅ Model 'gpt-4' of 'greeting' updated in SQLite")
     
-    # Actualizar prompt (cambiar nombre)
-    ps.update_prompt("saludo", new_name="saludo_actualizado")
-    print("✅ Prompt 'saludo' renombrado a 'saludo_actualizado' en SQLite")
+    # Update prompt (change name)
+    ps.update_prompt("greeting", new_name="updated_greeting")
+    print("✅ Prompt 'greeting' renamed to 'updated_greeting' in SQLite")
     
-    # Probar el prompt actualizado
-    saludo_actualizado = ps.build_prompt("saludo_actualizado", {"nombre": "Carlos"})
-    print(f"Saludo actualizado: {saludo_actualizado}")
+    # Test the updated prompt
+    updated_greeting = ps.build_prompt("updated_greeting", {"name": "Carlos"})
+    print(f"Updated greeting: {updated_greeting}")
     
-    # ===== 6. HISTORIAL Y BACKUP =====
-    print("\n📚 6. HISTORIAL Y BACKUP")
+    # ===== 6. HISTORY AND BACKUP =====
+    print("\n📚 6. HISTORY AND BACKUP")
     print("-" * 20)
     
-    # Crear backup
+    # Create backup
     backup_path = ps.backup("backup_prompts")
-    print(f"✅ Backup creado en SQLite: {backup_path}")
+    print(f"✅ Backup created in SQLite: {backup_path}")
     
-    # Obtener historial
+    # Get history
     history = ps.get_history()
-    print(f"Historial en SQLite: {len(history)} entradas")
-    for entry in history[:5]:  # Mostrar solo las primeras 5
+    print(f"History in SQLite: {len(history)} entries")
+    for entry in history[:5]:  # Show only first 5
         print(f"  - {entry['action']}: {entry['prompt_name']} ({entry['timestamp']})")
     
-    # ===== 7. ELIMINAR ELEMENTOS =====
-    print("\n🗑️ 7. ELIMINAR ELEMENTOS")
+    # ===== 7. DELETE ELEMENTS =====
+    print("\n🗑️ 7. DELETE ELEMENTS")
     print("-" * 20)
     
-    # Eliminar modelo específico
-    ps.remove_model("saludo_actualizado", "claude")
-    print("✅ Modelo 'claude' eliminado de 'saludo_actualizado' en SQLite")
+    # Delete specific model
+    ps.remove_model("updated_greeting", "claude")
+    print("✅ Model 'claude' deleted from 'updated_greeting' in SQLite")
     
-    # Eliminar prompt completo
-    ps.delete_prompt("traduccion")
-    print("✅ Prompt 'traduccion' eliminado de SQLite")
+    # Delete complete prompt
+    ps.delete_prompt("translation")
+    print("✅ Prompt 'translation' deleted from SQLite")
     
-    # Listar prompts después de eliminaciones
-    prompts_finales = ps.list_prompts()
-    print(f"Prompts finales en SQLite: {prompts_finales}")
+    # List prompts after deletions
+    final_prompts = ps.list_prompts()
+    print(f"Final prompts in SQLite: {final_prompts}")
     
-    # ===== 8. RESTAURAR DESDE BACKUP =====
-    print("\n🔄 8. RESTAURAR DESDE BACKUP")
+    # ===== 8. RESTORE FROM BACKUP =====
+    print("\n🔄 8. RESTORE FROM BACKUP")
     print("-" * 20)
     
-    # Restaurar prompt desde backup
-    ps.restore_prompt("traduccion", "backup_prompts")
-    print("✅ Prompt 'traduccion' restaurado desde backup en SQLite")
+    # Restore prompt from backup
+    ps.restore_prompt("translation", "backup_prompts")
+    print("✅ Prompt 'translation' restored from backup in SQLite")
     
-    # Verificar restauración
-    traduccion_restaurada = ps.build_prompt("traduccion", {
-        "texto": "Good morning",
-        "idioma_origen": "inglés",
-        "idioma_destino": "español"
+    # Verify restoration
+    restored_translation = ps.build_prompt("translation", {
+        "text": "Good morning",
+        "source_language": "English",
+        "target_language": "Spanish"
     })
-    print(f"Traducción restaurada: {traduccion_restaurada}")
+    print(f"Restored translation: {restored_translation}")
     
-    # ===== 9. INFORMACIÓN FINAL =====
-    print("\n📋 9. INFORMACIÓN FINAL")
+    # ===== 9. FINAL INFORMATION =====
+    print("\n📋 9. FINAL INFORMATION")
     print("-" * 20)
     
     print(f"Plugin: {ps.source_info}")
-    print(f"Prompts finales: {ps.list_prompts()}")
+    print(f"Final prompts: {ps.list_prompts()}")
     
-    # Mostrar información de la base de datos
-    print(f"\n🗄️ Información de la base de datos SQLite:")
+    # Show database information
+    print(f"\n🗄️ SQLite database information:")
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # Contar registros en cada tabla
+    # Count records in each table
     cursor.execute('SELECT COUNT(*) FROM prompts')
     prompts_count = cursor.fetchone()[0]
     
@@ -537,21 +520,21 @@ def main():
     backups_count = cursor.fetchone()[0]
     
     print(f"  - Prompts: {prompts_count}")
-    print(f"  - Modelos: {models_count}")
-    print(f"  - Historial: {history_count} entradas")
+    print(f"  - Models: {models_count}")
+    print(f"  - History: {history_count} entries")
     print(f"  - Backups: {backups_count}")
     
-    # Mostrar estructura de la base de datos
-    print(f"\n📊 Estructura de la base de datos:")
+    # Show database structure
+    print(f"\n📊 Database structure:")
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = [row[0] for row in cursor.fetchall()]
-    print(f"  - Tablas: {tables}")
+    print(f"  - Tables: {tables}")
     
     conn.close()
     
-    print("\n🎉 ¡Ejemplo de Plugin SQLite completado exitosamente!")
-    print("💡 Nota: PromptSuite no sabe nada de la base de datos SQLite")
-    print("   Solo llama a las funciones que le proporcionamos")
+    print("\n🎉 SQLite Plugin example completed successfully!")
+    print("💡 Note: PromptSuite knows nothing about the SQLite database")
+    print("   It only calls the functions we provide")
 
 if __name__ == "__main__":
     main()

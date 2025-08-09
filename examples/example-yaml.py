@@ -1,201 +1,201 @@
 #!/usr/bin/env python3
 """
-Ejemplo completo de PromptSuite con archivos YAML
-Muestra todas las funciones disponibles
+Complete PromptSuite example with YAML files
+Shows all available functions
 """
 from prompt_suite import PromptSuite
 import os
 
 def main():
-    print("🚀 PromptSuite - Ejemplo Completo con YAML")
+    print("🚀 PromptSuite - Complete Example with YAML")
     print("=" * 50)
     
-    # Archivo YAML para este ejemplo
+    # YAML file for this example
     yaml_file = "example_prompts.yaml"
     
-    # Inicializar PromptSuite con archivo YAML
+    # Initialize PromptSuite with YAML file
     ps = PromptSuite(yaml_file)
     
-    print(f"✅ PromptSuite inicializado con: {ps.source_info}")
+    print(f"✅ PromptSuite initialized with: {ps.source_info}")
     
-    # ===== 1. CREAR PROMPTS =====
-    print("\n📝 1. CREAR PROMPTS")
+    # ===== 1. CREATE PROMPTS =====
+    print("\n📝 1. CREATE PROMPTS")
     print("-" * 20)
     
-    # Crear prompt básico
+    # Create basic prompt
     ps.create_prompt(
-        name="saludo",
+        name="greeting",
         model_name="gpt-4",
-        content="Hola {nombre}, ¿cómo estás?",
-        parameters=["nombre"]
+        content="Hello {name}, how are you?",
+        parameters=["name"]
     )
-    print("✅ Prompt 'saludo' creado")
+    print("✅ Prompt 'greeting' created")
     
-    # Crear prompt con modelo por defecto
+    # Create prompt with default model
     ps.create_prompt(
-        name="analisis",
+        name="analysis",
         model_name="claude",
-        content="Analiza el siguiente texto: {texto}",
-        parameters=["texto"],
+        content="Analyze the following text: {text}",
+        parameters=["text"],
         default_model="claude"
     )
-    print("✅ Prompt 'analisis' creado")
+    print("✅ Prompt 'analysis' created")
     
-    # Crear prompt complejo
+    # Create complex prompt
     ps.create_prompt(
-        name="traduccion",
+        name="translation",
         model_name="gpt-4",
-        content="Traduce '{texto}' del {idioma_origen} al {idioma_destino}",
-        parameters=["texto", "idioma_origen", "idioma_destino"]
+        content="Translate '{text}' from {source_language} to {target_language}",
+        parameters=["text", "source_language", "target_language"]
     )
-    print("✅ Prompt 'traduccion' creado")
+    print("✅ Prompt 'translation' created")
     
-    # ===== 2. AGREGAR MODELOS =====
-    print("\n➕ 2. AGREGAR MODELOS")
+    # ===== 2. ADD MODELS =====
+    print("\n➕ 2. ADD MODELS")
     print("-" * 20)
     
-    # Agregar modelo adicional al prompt 'saludo'
+    # Add additional model to 'greeting' prompt
     ps.add_model(
-        name="saludo",
+        name="greeting",
         model_name="claude",
-        content="¡Hola {nombre}! ¿Todo bien?",
-        parameters=["nombre"]
+        content="Hi {name}! How are you doing?",
+        parameters=["name"]
     )
-    print("✅ Modelo 'claude' agregado a 'saludo'")
+    print("✅ Model 'claude' added to 'greeting'")
     
-    # Agregar modelo adicional al prompt 'analisis'
+    # Add additional model to 'analysis' prompt
     ps.add_model(
-        name="analisis",
+        name="analysis",
         model_name="gpt-4",
-        content="Realiza un análisis detallado de: {texto}",
-        parameters=["texto"]
+        content="Perform a detailed analysis of: {text}",
+        parameters=["text"]
     )
-    print("✅ Modelo 'gpt-4' agregado a 'analisis'")
+    print("✅ Model 'gpt-4' added to 'analysis'")
     
-    # ===== 3. CONSTRUIR PROMPTS =====
-    print("\n🔨 3. CONSTRUIR PROMPTS")
+    # ===== 3. BUILD PROMPTS =====
+    print("\n🔨 3. BUILD PROMPTS")
     print("-" * 20)
     
-    # Construir con modelo por defecto
-    saludo_gpt = ps.build_prompt("saludo", {"nombre": "Juan"})
-    print(f"Saludo GPT-4: {saludo_gpt}")
+    # Build with default model
+    greeting_gpt = ps.build_prompt("greeting", {"name": "John"})
+    print(f"GPT-4 Greeting: {greeting_gpt}")
     
-    # Construir con modelo específico
-    saludo_claude = ps.build_prompt("saludo", {"nombre": "María"}, model_name="claude")
-    print(f"Saludo Claude: {saludo_claude}")
+    # Build with specific model
+    greeting_claude = ps.build_prompt("greeting", {"name": "Mary"}, model_name="claude")
+    print(f"Claude Greeting: {greeting_claude}")
     
-    # Construir prompt de análisis
-    analisis = ps.build_prompt("analisis", {"texto": "Este es un texto de prueba para analizar"})
-    print(f"Análisis: {analisis}")
+    # Build analysis prompt
+    analysis = ps.build_prompt("analysis", {"text": "This is a test text to analyze"})
+    print(f"Analysis: {analysis}")
     
-    # Construir prompt de traducción
-    traduccion = ps.build_prompt("traduccion", {
-        "texto": "Hello world",
-        "idioma_origen": "inglés",
-        "idioma_destino": "español"
+    # Build translation prompt
+    translation = ps.build_prompt("translation", {
+        "text": "Hello world",
+        "source_language": "English",
+        "target_language": "Spanish"
     })
-    print(f"Traducción: {traduccion}")
+    print(f"Translation: {translation}")
     
-    # ===== 4. OBTENER INFORMACIÓN =====
-    print("\n📊 4. OBTENER INFORMACIÓN")
+    # ===== 4. GET INFORMATION =====
+    print("\n📊 4. GET INFORMATION")
     print("-" * 20)
     
-    # Listar todos los prompts
+    # List all prompts
     prompts = ps.list_prompts()
-    print(f"Prompts disponibles: {prompts}")
+    print(f"Available prompts: {prompts}")
     
-    # Obtener información de un prompt específico
-    info_saludo = ps.get_prompt_info("saludo")
-    print(f"Info del prompt 'saludo':")
-    print(f"  - Modelos: {list(info_saludo['models'].keys())}")
-    print(f"  - Modelo por defecto: {info_saludo['default_model']}")
+    # Get information of a specific prompt
+    greeting_info = ps.get_prompt_info("greeting")
+    print(f"Info for prompt 'greeting':")
+    print(f"  - Models: {list(greeting_info['models'].keys())}")
+    print(f"  - Default model: {greeting_info['default_model']}")
     
-    # Obtener prompt completo
-    prompt_completo = ps.get_prompt("saludo")
-    print(f"Prompt completo 'saludo': {prompt_completo}")
+    # Get complete prompt
+    complete_prompt = ps.get_prompt("greeting")
+    print(f"Complete prompt 'greeting': {complete_prompt}")
     
-    # ===== 5. ACTUALIZAR PROMPTS =====
-    print("\n✏️ 5. ACTUALIZAR PROMPTS")
+    # ===== 5. UPDATE PROMPTS =====
+    print("\n✏️ 5. UPDATE PROMPTS")
     print("-" * 20)
     
-    # Actualizar modelo por defecto
+    # Update default model
     ps.update_model(
-        name="saludo",
+        name="greeting",
         model_name="gpt-4",
-        content="¡Hola {nombre}! ¿Cómo te va?",
-        parameters=["nombre"]
+        content="Hello {name}! How are you doing?",
+        parameters=["name"]
     )
-    print("✅ Modelo 'gpt-4' de 'saludo' actualizado")
+    print("✅ Model 'gpt-4' of 'greeting' updated")
     
-    # Actualizar prompt (cambiar nombre)
-    ps.update_prompt("saludo", new_name="saludo_actualizado")
-    print("✅ Prompt 'saludo' renombrado a 'saludo_actualizado'")
+    # Update prompt (change name)
+    ps.update_prompt("greeting", new_name="updated_greeting")
+    print("✅ Prompt 'greeting' renamed to 'updated_greeting'")
     
-    # Probar el prompt actualizado
-    saludo_actualizado = ps.build_prompt("saludo_actualizado", {"nombre": "Carlos"})
-    print(f"Saludo actualizado: {saludo_actualizado}")
+    # Test the updated prompt
+    updated_greeting = ps.build_prompt("updated_greeting", {"name": "Carlos"})
+    print(f"Updated greeting: {updated_greeting}")
     
-    # ===== 6. HISTORIAL Y BACKUP =====
-    print("\n📚 6. HISTORIAL Y BACKUP")
+    # ===== 6. HISTORY AND BACKUP =====
+    print("\n📚 6. HISTORY AND BACKUP")
     print("-" * 20)
     
-    # Crear backup
+    # Create backup
     backup_path = ps.backup("backup_prompts.yaml")
-    print(f"✅ Backup creado en: {backup_path}")
+    print(f"✅ Backup created at: {backup_path}")
     
-    # Obtener historial (si existe)
+    # Get history (if exists)
     try:
         history = ps.get_history()
-        print(f"Historial: {len(history)} entradas")
+        print(f"History: {len(history)} entries")
     except:
-        print("No hay historial disponible")
+        print("No history available")
     
-    # ===== 7. ELIMINAR ELEMENTOS =====
-    print("\n🗑️ 7. ELIMINAR ELEMENTOS")
+    # ===== 7. DELETE ELEMENTS =====
+    print("\n🗑️ 7. DELETE ELEMENTS")
     print("-" * 20)
     
-    # Eliminar modelo específico
-    ps.remove_model("saludo_actualizado", "claude")
-    print("✅ Modelo 'claude' eliminado de 'saludo_actualizado'")
+    # Delete specific model
+    ps.remove_model("updated_greeting", "claude")
+    print("✅ Model 'claude' deleted from 'updated_greeting'")
     
-    # Eliminar prompt completo
-    ps.delete_prompt("traduccion")
-    print("✅ Prompt 'traduccion' eliminado")
+    # Delete complete prompt
+    ps.delete_prompt("translation")
+    print("✅ Prompt 'translation' deleted")
     
-    # Listar prompts después de eliminaciones
-    prompts_finales = ps.list_prompts()
-    print(f"Prompts finales: {prompts_finales}")
+    # List prompts after deletions
+    final_prompts = ps.list_prompts()
+    print(f"Final prompts: {final_prompts}")
     
-    # ===== 8. RESTAURAR DESDE BACKUP =====
-    print("\n🔄 8. RESTAURAR DESDE BACKUP")
+    # ===== 8. RESTORE FROM BACKUP =====
+    print("\n🔄 8. RESTORE FROM BACKUP")
     print("-" * 20)
     
-    # Restaurar prompt desde backup
-    ps.restore_prompt("traduccion", "backup_prompts.yaml")
-    print("✅ Prompt 'traduccion' restaurado desde backup")
+    # Restore prompt from backup
+    ps.restore_prompt("translation", "backup_prompts.yaml")
+    print("✅ Prompt 'translation' restored from backup")
     
-    # Verificar restauración
-    traduccion_restaurada = ps.build_prompt("traduccion", {
-        "texto": "Good morning",
-        "idioma_origen": "inglés",
-        "idioma_destino": "español"
+    # Verify restoration
+    restored_translation = ps.build_prompt("translation", {
+        "text": "Good morning",
+        "source_language": "English",
+        "target_language": "Spanish"
     })
-    print(f"Traducción restaurada: {traduccion_restaurada}")
+    print(f"Restored translation: {restored_translation}")
     
-    # ===== 9. INFORMACIÓN FINAL =====
-    print("\n📋 9. INFORMACIÓN FINAL")
+    # ===== 9. FINAL INFORMATION =====
+    print("\n📋 9. FINAL INFORMATION")
     print("-" * 20)
     
-    print(f"Archivo YAML: {ps.file_info}")
-    print(f"Prompts finales: {ps.list_prompts()}")
+    print(f"YAML file: {ps.file_info}")
+    print(f"Final prompts: {ps.list_prompts()}")
     
-    # Mostrar contenido del archivo YAML
-    print(f"\n📄 Contenido del archivo YAML:")
+    # Show YAML file content
+    print(f"\n📄 YAML file content:")
     with open(yaml_file, 'r', encoding='utf-8') as f:
         content = f.read()
         print(content)
     
-    print("\n🎉 ¡Ejemplo YAML completado exitosamente!")
+    print("\n🎉 YAML example completed successfully!")
 
 if __name__ == "__main__":
     main()
